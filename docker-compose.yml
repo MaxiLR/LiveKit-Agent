@@ -1,0 +1,81 @@
+services:
+  rag-service:
+    build:
+      context: .
+      dockerfile: services/rag_service/Dockerfile
+    env_file:
+      - services/livekit_agent/.env
+      - services/rag_service/.env
+    environment:
+      RAG_STORAGE_DIR: /app/storage
+      RAG_DOCUMENTS_DIR: /app/storage/documents
+      RAG_INDEX_DIR: /app/storage/indexes
+      RAG_SERVICE_HOST: 0.0.0.0
+      RAG_ENABLE_RERANK: "false"
+    volumes:
+      - ./storage:/app/storage
+      - huggingface-cache:/root/.cache/huggingface
+    ports:
+      - "8081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8081/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  livekit-agent-api:
+    build:
+      context: .
+      dockerfile: services/livekit_agent/Dockerfile
+    command: ["livekit-backend-api"]
+    env_file:
+      - services/livekit_agent/.env
+    environment:
+      BACKEND_API_HOST: 0.0.0.0
+      RAG_SERVICE_URL: http://rag-service:8081
+      RAG_STORAGE_DIR: /app/storage
+      RAG_DOCUMENTS_DIR: /app/storage/documents
+      RAG_INDEX_DIR: /app/storage/indexes
+      RAG_RERANK_ENABLED: "false"
+    depends_on:
+      rag-service:
+        condition: service_healthy
+    volumes:
+      - ./storage:/app/storage
+    ports:
+      - "8000:8000"
+
+  livekit-agent-worker:
+    build:
+      context: .
+      dockerfile: services/livekit_agent/Dockerfile
+    command: ["livekit-backend", "dev"]
+    env_file:
+      - services/livekit_agent/.env
+    environment:
+      RAG_SERVICE_URL: http://rag-service:8081
+      RAG_STORAGE_DIR: /app/storage
+      RAG_DOCUMENTS_DIR: /app/storage/documents
+      RAG_INDEX_DIR: /app/storage/indexes
+      RAG_RERANK_ENABLED: "false"
+    depends_on:
+      rag-service:
+        condition: service_healthy
+    volumes:
+      - ./storage:/app/storage
+
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_LIVEKIT_WS_URL: ${VITE_LIVEKIT_WS_URL:-wss://example.livekit.cloud}
+        VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8000}
+    ports:
+      - "5173:80"
+    depends_on:
+      - livekit-agent-api
+
+volumes:
+  huggingface-cache:

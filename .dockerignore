@@ -1,0 +1,15 @@
+.git
+.gitignore
+__pycache__/
+*.py[cod]
+*.sqlite
+*.log
+.venv/
+env/
+node_modules/
+frontend/node_modules/
+packages/**/build/
+dist/
+.DS_Store
+storage/documents/*
+storage/indexes/*

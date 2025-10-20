@@ -1,0 +1,28 @@
+[project]
+name = "rag-service"
+version = "0.1.0"
+description = "HTTP service exposing shared RAG capabilities for LiveKit agents"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "rag-core",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.33.0",
+    "python-dotenv>=1.0.1",
+]
+
+[dependency-groups]
+dev = ["ruff>=0.6.9", "pytest>=8.3.3"]
+
+[project.scripts]
+rag-service = "rag_service.main:run"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.uv.sources]
+rag-core = { path = "../../packages/rag_core" }

@@ -1,0 +1,38 @@
+[project]
+name = "livekit-agent-backend"
+version = "0.1.0"
+description = "LiveKit voice assistant backend with RAG tooling"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "rag-core",
+    "dotenv>=0.9.9",
+    "livekit>=1.0.17",
+    "livekit-agents[cartesia,deepgram,openai,silero,turn-detector]~=1.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.33.0",
+    "openai>=2.5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6.9",
+    "pytest>=8.3.3",
+]
+
+[project.scripts]
+livekit-backend = "backend_app.main:run_cli"
+livekit-backend-api = "backend_app.token_api:run"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[dependency-groups]
+dev = ["ruff>=0.6.9", "pytest>=8.3.3"]
+
+[tool.uv.sources]
+rag-core = { path = "../../packages/rag_core" }
