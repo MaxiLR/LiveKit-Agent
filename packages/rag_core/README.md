@@ -1,3 +1,3 @@
 # rag-core
 
-Shared PDF indexing and retrieval helpers built around FAISS for the LiveKit agent platform.
+Shared OpenAI retrieval helpers that wrap the Responses + vector store APIs for the LiveKit agent platform.

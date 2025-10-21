@@ -1,32 +1,115 @@
-import { useCallback, useMemo, useState } from "react";
 import {
   LiveKitRoom,
   RoomAudioRenderer,
   useConnectionState
 } from "@livekit/components-react";
 import "@livekit/components-styles";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-import JoinForm, { type JoinFormValues } from "./components/JoinForm";
-import SessionControls from "./components/SessionControls";
-import TranscriptPanel from "./components/TranscriptPanel";
+import JoinForm, { type JoinFormValues } from "@/components/JoinForm";
+import KnowledgeSidebar from "@/components/KnowledgeSidebar";
+import SessionControls from "@/components/SessionControls";
+import TranscriptPanel from "@/components/TranscriptPanel";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from "@/components/ui/card";
 
 const TOKEN_ENDPOINT_PATH = "/api/livekit/token";
 
 const serverUrl = import.meta.env.VITE_LIVEKIT_WS_URL as string | undefined;
 const backendUrl = import.meta.env.VITE_BACKEND_URL as string | undefined;
+const ragServiceUrl = import.meta.env.VITE_RAG_SERVICE_URL as string | undefined;
+
+type KnowledgeDocument = {
+  filename: string;
+  sizeBytes: number;
+};
+
+type DocumentListResponse = {
+  documents?: Array<{ filename: string; size_bytes: number }>;
+  vector_store_id?: string;
+};
+
+type DocumentIngestResponse = {
+  document?: { filename: string; size_bytes: number };
+  vector_store_id?: string;
+  already_present?: boolean;
+};
 
 const App = () => {
   const [token, setToken] = useState<string>();
   const [identity, setIdentity] = useState<string>();
-  const [roomName, setRoomName] = useState<string>("saveapp-story-room");
+  const [roomName, setRoomName] = useState<string>("example-room");
   const [joinError, setJoinError] = useState<string>();
   const [isJoining, setIsJoining] = useState(false);
+
+  const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
+  const [vectorStoreId, setVectorStoreId] = useState<string>();
+  const [documentsLoading, setDocumentsLoading] = useState(false);
+  const [documentsError, setDocumentsError] = useState<string>();
+  const [isUploading, setIsUploading] = useState(false);
+
+  const ragBaseUrl = useMemo(
+    () => (ragServiceUrl ? ragServiceUrl.replace(/\/+$/, "") : undefined),
+    [ragServiceUrl]
+  );
+
+  const ragUnavailableMessage = ragBaseUrl
+    ? undefined
+    : "Set VITE_RAG_SERVICE_URL to enable document uploads.";
 
   const joinDisabledReason = !serverUrl
     ? "Missing VITE_LIVEKIT_WS_URL value."
     : !backendUrl
       ? "Missing VITE_BACKEND_URL value."
       : undefined;
+
+  const refreshDocuments = useCallback(async () => {
+    if (!ragBaseUrl) {
+      setDocuments([]);
+      setVectorStoreId(undefined);
+      setDocumentsError(undefined);
+      return;
+    }
+
+    setDocumentsLoading(true);
+    setDocumentsError(undefined);
+    try {
+      const response = await fetch(`${ragBaseUrl}/documents`, {
+        method: "GET"
+      });
+      if (!response.ok) {
+        const detail = await safeReadError(response);
+        throw new Error(
+          detail ?? `Document list request failed with status ${response.status}.`
+        );
+      }
+
+      const payload = (await response.json()) as DocumentListResponse;
+      const normalized =
+        payload.documents?.map((doc) => ({
+          filename: doc.filename,
+          sizeBytes: doc.size_bytes ?? 0
+        })) ?? [];
+      normalized.sort((a, b) => a.filename.localeCompare(b.filename));
+      setDocuments(normalized);
+      setVectorStoreId(payload.vector_store_id ?? undefined);
+    } catch (error) {
+      setDocumentsError(
+        error instanceof Error ? error.message : "Failed to load documents."
+      );
+    } finally {
+      setDocumentsLoading(false);
+    }
+  }, [ragBaseUrl]);
+
+  useEffect(() => {
+    void refreshDocuments();
+  }, [refreshDocuments]);
 
   const handleJoin = useCallback(
     async ({ displayName, room }: JoinFormValues) => {
@@ -61,59 +144,133 @@ const App = () => {
 
   const handleLeave = useCallback(() => {
     setToken(undefined);
+    setIdentity(undefined);
   }, []);
+
+  const handleUploadDocument = useCallback(
+    async (file: File) => {
+      if (!ragBaseUrl) {
+        return;
+      }
+      setIsUploading(true);
+      setDocumentsError(undefined);
+      try {
+        const formData = new FormData();
+        formData.append("file", file);
+        const response = await fetch(`${ragBaseUrl}/documents`, {
+          method: "POST",
+          body: formData
+        });
+        if (!response.ok) {
+          const detail = await safeReadError(response);
+          throw new Error(
+            detail ?? `Upload failed with status ${response.status}.`
+          );
+        }
+        const payload = (await response.json()) as DocumentIngestResponse;
+        if (payload.vector_store_id) {
+          setVectorStoreId(payload.vector_store_id);
+        }
+        if (payload.document) {
+          setDocuments((current) => {
+            const next = current.filter(
+              (item) => item.filename !== payload.document?.filename
+            );
+            next.push({
+              filename: payload.document.filename,
+              sizeBytes: payload.document.size_bytes ?? 0
+            });
+            next.sort((a, b) => a.filename.localeCompare(b.filename));
+            return next;
+          });
+        } else {
+          await refreshDocuments();
+        }
+      } catch (error) {
+        setDocumentsError(
+          error instanceof Error ? error.message : "Failed to upload document."
+        );
+      } finally {
+        setIsUploading(false);
+      }
+    },
+    [ragBaseUrl, refreshDocuments]
+  );
 
   if (!serverUrl || !backendUrl) {
     return (
-      <main className="app-shell">
-        <section className="card warning">
-          <h1>Frontend configuration required</h1>
-          <p>
-            Set <code>VITE_LIVEKIT_WS_URL</code> and <code>VITE_BACKEND_URL</code>{" "}
-            in <code>frontend/.env</code> before starting the app.
-          </p>
-        </section>
+      <main className="flex min-h-screen w-full items-center justify-center bg-black px-6 py-12 text-white">
+        <Card className="w-full max-w-xl border border-white/30 bg-black text-white shadow-lg">
+          <CardHeader>
+            <CardTitle>Configuration Required</CardTitle>
+            <CardDescription className="text-white/70">
+              Provide <code className="font-mono text-white">VITE_LIVEKIT_WS_URL</code> and{" "}
+              <code className="font-mono text-white">VITE_BACKEND_URL</code> in{" "}
+              <code className="font-mono text-white">frontend/.env</code> before starting the app.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-white/60">
+              Once the environment variables are set, refresh this page to continue.
+            </p>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  if (!token) {
+    return (
+      <main className="flex min-h-screen w-full items-center justify-center bg-black px-6 py-12 text-white">
+        <Card className="w-full max-w-xl border border-white/30 bg-black text-white shadow-lg">
+          <CardHeader>
+            <CardTitle>LiveKit Knowledge Agent</CardTitle>
+            <CardDescription className="text-white/70">
+              Join a voice room to collaborate with the document-aware assistant.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <JoinForm
+              defaultRoomName={roomName}
+              onSubmit={handleJoin}
+              isSubmitting={isJoining}
+              error={joinError}
+              disabledReason={joinDisabledReason}
+            />
+          </CardContent>
+        </Card>
       </main>
     );
   }
 
   return (
-    <main className="app-shell">
-      {!token ? (
-        <section className="card join-card">
-          <header className="card-header">
-            <h1>SaveApp Story Companion</h1>
-            <p>
-              Start a voice call with the SaveApp assistant and see the live
-              transcript update in real time.
-            </p>
-          </header>
-          <JoinForm
-            defaultRoomName={roomName}
-            onSubmit={handleJoin}
-            isSubmitting={isJoining}
-            error={joinError}
-            disabledReason={joinDisabledReason}
+    <main className="flex min-h-screen w-full items-center justify-center bg-black px-4 py-8 text-white">
+      <div className="flex w-full max-w-6xl flex-col">
+        <LiveKitRoom
+          token={token}
+          serverUrl={serverUrl}
+          connectOptions={{ autoSubscribe: true }}
+          onDisconnected={handleLeave}
+          className="flex h-[82vh] flex-col rounded-[32px] border border-white/20 bg-black/80 px-8 py-6 shadow-2xl"
+          data-lk-theme="default"
+        >
+          <RoomAudioRenderer />
+          <ActiveSession
+            displayName={identity ?? "Guest"}
+            localIdentity={identity}
+            roomName={roomName}
+            documents={documents}
+            vectorStoreId={vectorStoreId}
+            documentsLoading={documentsLoading}
+            documentsError={documentsError}
+            onReloadDocuments={refreshDocuments}
+            onUpload={handleUploadDocument}
+            onLeave={handleLeave}
+            isUploading={isUploading}
+            ragUnavailableMessage={ragUnavailableMessage}
           />
-        </section>
-      ) : (
-        <div className="room-stage">
-          <LiveKitRoom
-            token={token}
-            serverUrl={serverUrl}
-            connectOptions={{ autoSubscribe: true }}
-            onDisconnected={handleLeave}
-            data-lk-theme="default"
-          >
-            <RoomAudioRenderer />
-            <ActiveSession
-              displayName={identity ?? "Guest"}
-              roomName={roomName}
-              onLeave={handleLeave}
-            />
-          </LiveKitRoom>
-        </div>
-      )}
+        </LiveKitRoom>
+      </div>
     </main>
   );
 };
@@ -135,9 +292,7 @@ async function requestAccessToken({ identity, roomName }: TokenRequest) {
   });
   if (!response.ok) {
     const detail = await safeReadError(response);
-    throw new Error(
-      detail ?? `Token request failed with status ${response.status}.`
-    );
+    throw new Error(detail ?? `Token request failed with status ${response.status}.`);
   }
   const payload = (await response.json()) as { token?: string };
   if (!payload?.token) {
@@ -149,11 +304,11 @@ async function requestAccessToken({ identity, roomName }: TokenRequest) {
 async function safeReadError(response: Response) {
   try {
     const data = await response.json();
-    if (typeof data?.detail === "string") {
-      return data.detail;
+    if (typeof (data as { detail?: string }).detail === "string") {
+      return (data as { detail?: string }).detail;
     }
-    if (typeof data?.error === "string") {
-      return data.error;
+    if (typeof (data as { error?: string }).error === "string") {
+      return (data as { error?: string }).error;
     }
   } catch {
     // ignore
@@ -168,46 +323,85 @@ async function safeReadError(response: Response) {
 
 type ActiveSessionProps = {
   displayName: string;
+  localIdentity?: string;
   roomName: string;
+  documents: KnowledgeDocument[];
+  vectorStoreId?: string;
+  documentsLoading: boolean;
+  documentsError?: string;
+  onReloadDocuments: () => Promise<void> | void;
+  onUpload: (file: File) => Promise<void> | void;
   onLeave: () => void;
+  isUploading: boolean;
+  ragUnavailableMessage?: string;
 };
 
-const ActiveSession = ({ displayName, roomName, onLeave }: ActiveSessionProps) => {
+const ActiveSession = ({
+  displayName,
+  localIdentity,
+  roomName,
+  documents,
+  vectorStoreId,
+  documentsLoading,
+  documentsError,
+  onReloadDocuments,
+  onUpload,
+  onLeave,
+  isUploading,
+  ragUnavailableMessage
+}: ActiveSessionProps) => {
+  const connection = useConnectionState();
+
+  const status = useMemo(() => {
+    switch (connection) {
+      case "connected":
+        return { label: "Connected", className: "bg-white text-black" };
+      case "reconnecting":
+        return { label: "Reconnecting…", className: "border border-white/70 text-white" };
+      case "disconnected":
+        return { label: "Disconnected", className: "border border-white text-white" };
+      default:
+        return { label: connection ?? "Unknown", className: "border border-white/50 text-white" };
+    }
+  }, [connection]);
+
   return (
-    <section className="session-layout">
-      <header className="session-header">
+    <section className="flex h-full flex-1 flex-col">
+      <header className="flex flex-col gap-4 border-b border-white/15 pb-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="eyebrow">Connected to</p>
-          <h1 className="session-title">{roomName}</h1>
-          <p className="session-subtitle">Speaking as {displayName}</p>
+          <p className="text-xs uppercase tracking-[0.35em] text-white/50">Room</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-white md:text-3xl">{roomName}</h1>
+          <p className="text-sm text-white/60">Signed in as {displayName}</p>
         </div>
-        <ConnectionBadge />
+        <span className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm ${status.className}`}>
+          <span className="h-2 w-2 rounded-full bg-current" aria-hidden />
+          {status.label}
+        </span>
       </header>
 
-      <TranscriptPanel />
+      <div className="mt-6 flex flex-1 flex-col overflow-hidden">
+        <div className="grid h-full flex-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-black/60 p-6">
+            <TranscriptPanel localIdentity={localIdentity} />
+          </div>
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-black/60 p-6">
+            <KnowledgeSidebar
+              documents={documents}
+              vectorStoreId={vectorStoreId}
+              isLoading={documentsLoading}
+              isUploading={isUploading}
+              error={documentsError}
+              onUpload={onUpload}
+              onReload={onReloadDocuments}
+              disabledMessage={ragUnavailableMessage}
+            />
+          </div>
+        </div>
+      </div>
 
       <SessionControls onLeave={onLeave} />
     </section>
   );
-};
-
-const ConnectionBadge = () => {
-  const connection = useConnectionState();
-
-  const { label, tone } = useMemo(() => {
-    switch (connection) {
-      case "connected":
-        return { label: "Live", tone: "success" as const };
-      case "reconnecting":
-        return { label: "Reconnecting…", tone: "warning" as const };
-      case "connecting":
-        return { label: "Connecting…", tone: "muted" as const };
-      default:
-        return { label: "Offline", tone: "danger" as const };
-    }
-  }, [connection]);
-
-  return <span className={`status-pill ${tone}`}>{label}</span>;
 };
 
 export default App;

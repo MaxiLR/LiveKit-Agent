@@ -46,3 +46,22 @@ class QueryResponse(BaseModel):
 
 class SearchResponse(BaseModel):
     sources: List[SourceResponse]
+
+
+class DocumentSummary(BaseModel):
+    filename: str = Field(..., description="Stored filename inside the documents directory")
+    size_bytes: int = Field(..., ge=0, description="File size in bytes")
+
+
+class DocumentListResponse(BaseModel):
+    documents: List[DocumentSummary]
+    vector_store_id: str
+
+
+class DocumentIngestResponse(BaseModel):
+    document: DocumentSummary
+    vector_store_id: str
+    already_present: bool = Field(
+        False,
+        description="True when the document already existed in the vector store",
+    )

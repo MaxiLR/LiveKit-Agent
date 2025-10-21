@@ -113,7 +113,7 @@ def run() -> None:
     """Run the FastAPI app with uvicorn."""
     port = int(os.getenv("BACKEND_API_PORT", "8000"))
     host = os.getenv("BACKEND_API_HOST", "127.0.0.1")
-    uvicorn.run("backend_app.token_api:app", host=host, port=port, reload=False)
+    uvicorn.run("agent.token_api:app", host=host, port=port, reload=False)
 
 
 if __name__ == "__main__":

@@ -9,12 +9,11 @@ services:
     environment:
       RAG_STORAGE_DIR: /app/storage
       RAG_DOCUMENTS_DIR: /app/storage/documents
-      RAG_INDEX_DIR: /app/storage/indexes
       RAG_SERVICE_HOST: 0.0.0.0
-      RAG_ENABLE_RERANK: "false"
+      RAG_SERVICE_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      RAG_MAX_DOCUMENT_BYTES: 26214400
     volumes:
       - ./storage:/app/storage
-      - huggingface-cache:/root/.cache/huggingface
     ports:
       - "8081:8081"
     healthcheck:
@@ -34,15 +33,9 @@ services:
     environment:
       BACKEND_API_HOST: 0.0.0.0
       RAG_SERVICE_URL: http://rag-service:8081
-      RAG_STORAGE_DIR: /app/storage
-      RAG_DOCUMENTS_DIR: /app/storage/documents
-      RAG_INDEX_DIR: /app/storage/indexes
-      RAG_RERANK_ENABLED: "false"
     depends_on:
       rag-service:
         condition: service_healthy
-    volumes:
-      - ./storage:/app/storage
     ports:
       - "8000:8000"
 
@@ -55,15 +48,9 @@ services:
       - services/livekit_agent/.env
     environment:
       RAG_SERVICE_URL: http://rag-service:8081
-      RAG_STORAGE_DIR: /app/storage
-      RAG_DOCUMENTS_DIR: /app/storage/documents
-      RAG_INDEX_DIR: /app/storage/indexes
-      RAG_RERANK_ENABLED: "false"
     depends_on:
       rag-service:
         condition: service_healthy
-    volumes:
-      - ./storage:/app/storage
 
   frontend:
     build:
@@ -72,10 +59,8 @@ services:
       args:
         VITE_LIVEKIT_WS_URL: ${VITE_LIVEKIT_WS_URL:-wss://example.livekit.cloud}
         VITE_BACKEND_URL: ${VITE_BACKEND_URL:-http://localhost:8000}
+        VITE_RAG_SERVICE_URL: ${VITE_RAG_SERVICE_URL:-http://localhost:8081}
     ports:
       - "5173:80"
     depends_on:
       - livekit-agent-api
-
-volumes:
-  huggingface-cache:

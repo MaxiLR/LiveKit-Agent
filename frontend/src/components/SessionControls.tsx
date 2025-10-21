@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useConnectionState, useRoomContext } from "@livekit/components-react";
 
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
 type SessionControlsProps = {
   onLeave: () => void;
 };
@@ -24,7 +27,9 @@ const SessionControls = ({ onLeave }: SessionControlsProps) => {
   }, [room]);
 
   const handleLeave = async () => {
-    if (ending) {
+    if (ending) return;
+    if (!room) {
+      onLeave();
       return;
     }
     setEnding(true);
@@ -39,9 +44,8 @@ const SessionControls = ({ onLeave }: SessionControlsProps) => {
   };
 
   const handleStartAudio = async () => {
-    if (audioStarted) {
-      return;
-    }
+    if (audioStarted) return;
+    if (!room) return;
     try {
       await room.startAudio();
       setAudioStarted(true);
@@ -51,6 +55,7 @@ const SessionControls = ({ onLeave }: SessionControlsProps) => {
   };
 
   const toggleMicrophone = async () => {
+    if (!room) return;
     try {
       const newState = !microphoneEnabled;
       await room.localParticipant.setMicrophoneEnabled(newState);
@@ -61,33 +66,38 @@ const SessionControls = ({ onLeave }: SessionControlsProps) => {
   };
 
   return (
-    <footer className="session-controls">
-      <div className="controls-row">
-        <button
+    <footer className="mt-6 border-t border-white/15 pt-4">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <Button
           type="button"
-          className="btn secondary"
+          variant={audioStarted ? "outline" : "default"}
           onClick={handleStartAudio}
           disabled={audioStarted}
+          className={cn("min-w-[140px]")}
         >
           {audioStarted ? "Audio Ready" : "Enable Audio"}
-        </button>
-
-        <button
+        </Button>
+        <Button
           type="button"
-          className="btn secondary"
+          variant="ghost"
           onClick={toggleMicrophone}
+          aria-live="polite"
+          className="min-w-[140px] text-white"
         >
+          <span aria-hidden="true" className="mr-2 text-base">
+            {microphoneEnabled ? "🎙️" : "🔇"}
+          </span>
           {microphoneEnabled ? "Mute Mic" : "Unmute Mic"}
-        </button>
-
-        <button
+        </Button>
+        <Button
           type="button"
-          className="btn danger"
+          variant="destructive"
           onClick={handleLeave}
           disabled={ending}
+          className="min-w-[140px]"
         >
           {ending ? "Ending…" : "End Call"}
-        </button>
+        </Button>
       </div>
     </footer>
   );

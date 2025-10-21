@@ -14,6 +14,12 @@ def _bool_env(name: str, default: str = "false") -> bool:
     return value.lower() in {"1", "true", "yes", "on"}
 
 
+def _csv_env(name: str, default: str = "") -> tuple[str, ...]:
+    value = os.getenv(name, default)
+    parts = [item.strip() for item in value.split(",") if item.strip()]
+    return tuple(parts) if parts else tuple()
+
+
 def _find_project_root() -> Path:
     current = Path(__file__).resolve()
     for parent in current.parents:
@@ -44,15 +50,16 @@ class Settings:
     documents_dir: Path = Path(
         os.getenv("RAG_DOCUMENTS_DIR", storage_dir / "documents")
     )
-    index_dir: Path = Path(os.getenv("RAG_INDEX_DIR", storage_dir / "indexes"))
-    embed_model: str = os.getenv("RAG_EMBED_MODEL", "intfloat/multilingual-e5-base")
     service_host: str = os.getenv("RAG_SERVICE_HOST", "127.0.0.1")
     service_port: int = int(os.getenv("RAG_SERVICE_PORT", "8081"))
     default_top_k: int = int(os.getenv("RAG_SERVICE_TOP_K", "6"))
-    enable_rerank: bool = _bool_env("RAG_ENABLE_RERANK", "true")
-    rerank_model: str = os.getenv(
-        "RAG_RERANK_MODEL", "BAAI/bge-reranker-v2-m3"
+    openai_vector_store_id: str = os.getenv("OPENAI_VECTOR_STORE_ID", "")
+    openai_vector_store_name: str = os.getenv(
+        "OPENAI_VECTOR_STORE_NAME", "livekit-agent-rag"
     )
+    openai_rag_model: str = os.getenv("OPENAI_RAG_MODEL", "gpt-4.1-mini")
+    openai_sync_documents: bool = _bool_env("OPENAI_SYNC_DOCUMENTS", "true")
+    allowed_origins: tuple[str, ...] = _csv_env("RAG_SERVICE_ALLOWED_ORIGINS", "*")
 
 
 settings = Settings()

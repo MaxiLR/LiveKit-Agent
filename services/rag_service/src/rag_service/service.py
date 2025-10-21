@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Sequence, Tuple
 
-from rag_core.pdf_indexer import Hit, PDFKnowledgeBase
+from rag_core.openai_retriever import Hit, OpenAIRetriever
 
 
 @dataclass(slots=True)
@@ -21,35 +21,13 @@ class SourcePayload:
 
 
 class RAGEngine:
-    """Wraps PDFKnowledgeBase and exposes higher level helpers."""
+    """Thin wrapper around the shared OpenAI retriever utility."""
 
     def __init__(
         self,
-        documents_dir,
-        index_dir,
-        embed_model: str,
-        *,
-        enable_rerank: bool,
-        rerank_model: str,
+        retriever: OpenAIRetriever,
     ) -> None:
-        documents_dir = Path(documents_dir)
-        index_dir = Path(index_dir)
-        if not documents_dir.exists():
-            raise FileNotFoundError(
-                f"Documents directory not found at {documents_dir}. "
-                "Create it and add at least one PDF."
-            )
-        index_dir.mkdir(parents=True, exist_ok=True)
-
-        self._kb = PDFKnowledgeBase(
-            documents_dir=documents_dir,
-            index_dir=index_dir,
-            embed_model=embed_model,
-        )
-        # Ensure the FAISS index is ready as part of the service startup.
-        self._kb.ensure_index(show_progress=False)
-        self._enable_rerank = enable_rerank
-        self._rerank_model = rerank_model
+        self._retriever = retriever
 
     def ask(
         self,
@@ -60,20 +38,24 @@ class RAGEngine:
         final_m: int | None = None,
         answer_lang: str | None = None,
     ) -> Tuple[str, Sequence[SourcePayload]]:
-        allow_rerank = use_rerank and self._enable_rerank
-        answer, hits = self._kb.answer(
+        answer, hits = self._retriever.ask(
             question,
-            k=k,
-            use_rerank=allow_rerank,
-            rerank_model=self._rerank_model,
-            final_m=final_m or k,
+            k=final_m or k,
             answer_lang=answer_lang,
+            metadata={"requested_top_k": str(k)},
         )
         return answer, self._to_payload(hits)
 
     def search(self, query: str, *, k: int) -> Sequence[SourcePayload]:
-        hits = self._kb.search(query, k=k)
+        hits = self._retriever.search(query, k=k)
         return self._to_payload(hits)
+
+    def ingest_document(self, file_path: Path) -> bool:
+        return self._retriever.ingest_document(file_path)
+
+    @property
+    def vector_store_id(self) -> str:
+        return self._retriever.vector_store_id
 
     @staticmethod
     def _to_payload(hits: Sequence[Hit]) -> List[SourcePayload]:

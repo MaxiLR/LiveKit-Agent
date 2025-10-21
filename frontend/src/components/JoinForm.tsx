@@ -1,12 +1,16 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import clsx from "clsx";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 export type JoinFormValues = {
   displayName: string;
   room: string;
 };
 
-type JoinFormProps = {
+export type JoinFormProps = {
   defaultRoomName: string;
   onSubmit: (values: JoinFormValues) => Promise<void> | void;
   isSubmitting: boolean;
@@ -29,7 +33,7 @@ const JoinForm = ({
     setRoomName(defaultRoomName);
   }, [defaultRoomName]);
 
-  const isDisabled = useMemo(
+  const blocked = useMemo(
     () => isSubmitting || Boolean(disabledReason),
     [disabledReason, isSubmitting]
   );
@@ -47,51 +51,56 @@ const JoinForm = ({
       setFormError("Provide a room name.");
       return;
     }
+
     setFormError(undefined);
     await onSubmit({ displayName: trimmedName, room: trimmedRoom });
   };
 
+  const alert = formError ?? error ?? disabledReason;
+
   return (
-    <form className="join-form" onSubmit={handleSubmit}>
-      <div className="input-group">
-        <label htmlFor="displayName">Display name</label>
-        <input
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <div className="space-y-2">
+        <Label htmlFor="displayName">Display name</Label>
+        <Input
           id="displayName"
           name="displayName"
           placeholder="Your name"
+          autoComplete="name"
           value={displayName}
           onChange={(event) => setDisplayName(event.target.value)}
-          disabled={isDisabled}
-          autoComplete="name"
+          disabled={blocked}
         />
       </div>
 
-      <div className="input-group">
-        <label htmlFor="roomName">Room name</label>
-        <input
+      <div className="space-y-2">
+        <Label htmlFor="roomName">Room name</Label>
+        <Input
           id="roomName"
           name="roomName"
-          placeholder="saveapp-story-room"
+          placeholder="voice-agent-room"
+          autoComplete="off"
           value={roomName}
           onChange={(event) => setRoomName(event.target.value)}
-          disabled={isDisabled}
-          autoComplete="off"
+          disabled={blocked}
         />
       </div>
 
-      <button
-        type="submit"
-        className={clsx("btn", "primary")}
-        disabled={isDisabled}
-      >
+      <Button type="submit" className="w-full" disabled={blocked}>
         {isSubmitting ? "Starting…" : "Start Call"}
-      </button>
+      </Button>
 
-      {(formError || error || disabledReason) && (
-        <p className="form-error">
-          {formError || error || disabledReason}
+      {alert ? (
+        <p
+          role="alert"
+          className={cn(
+            "rounded-lg border border-white/30 bg-white/10 px-4 py-3 text-sm text-white",
+            "animate-in fade-in"
+          )}
+        >
+          {alert}
         </p>
-      )}
+      ) : null}
     </form>
   );
 };

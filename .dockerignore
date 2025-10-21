@@ -12,4 +12,3 @@ packages/**/build/
 dist/
 .DS_Store
 storage/documents/*
-storage/indexes/*

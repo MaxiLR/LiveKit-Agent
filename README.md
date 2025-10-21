@@ -2,12 +2,12 @@
 
 ## Project Layout (scaffold)
 - `services/livekit_agent/`: uv-managed Python project for the LiveKit agent entrypoint (`uv run livekit-backend`).
-- `packages/rag_core/`: shared library with FAISS/PDF utilities consumed by both backend and services.
+- `packages/rag_core/`: shared OpenAI retrieval helpers consumed by both backend and services.
 - `services/rag_service/`: FastAPI-based HTTP service exposing RAG APIs for multi-agent scenarios.
 - `frontend/`: Vite + React client for joining the LiveKit room, managing the call lifecycle, and rendering live transcripts.
-- `storage/`: persistent assets shared by services (`documents/` source PDFs, `indexes/` FAISS artifacts).
+- `storage/`: persistent assets shared by services (`documents/` source PDFs).
 
-See `services/livekit_agent/.env.example` and `services/rag_service/.env.example` for configuration hints.
+See `services/livekit_agent/.env.example` and `services/rag_service/.env.example` for configuration hints (including OpenAI vector store settings).
 
 ## Environment Configuration
 
@@ -18,23 +18,23 @@ See `services/livekit_agent/.env.example` and `services/rag_service/.env.example
 
 ## Running Locally
 
-1. **Start the FastAPI token service** (used by the frontend to mint LiveKit tokens):
+1. **Start the RAG service** (must be running before the agent so document search works):
+   ```bash
+   cd services/rag_service
+   uv run rag-service
+   ```
+
+2. **Start the FastAPI token service** (used by the frontend to mint LiveKit tokens):
    ```bash
    cd services/livekit_agent
    uv run livekit-backend-api
    ```
    This listens on `http://127.0.0.1:8000/api/livekit/token` by default. Override `BACKEND_API_HOST` / `BACKEND_API_PORT` (and `BACKEND_API_ALLOWED_ORIGINS` for CORS) in `services/livekit_agent/.env` if needed.
 
-2. **Run the LiveKit agent worker** (joins the room and powers the voice agent experience):
+3. **Run the LiveKit agent worker** (joins the room and powers the voice agent experience):
    ```bash
    cd services/livekit_agent
    uv run livekit-backend dev
-   ```
-
-3. *(Optional)* **Start the RAG service** if you want to offload retrieval:
-   ```bash
-   cd services/rag_service
-   uv run rag-service
    ```
 
 4. **Launch the frontend**:
