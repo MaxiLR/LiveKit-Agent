@@ -11,9 +11,10 @@
 - `SOP/` — step-by-step guides for common workflows (create on demand; currently empty).
 
 ## Document Summaries
-- `System/project_architecture.md` — full-stack overview covering repository layout, runtime data flow between services, external dependencies (OpenAI, LiveKit, Deepgram, Silero), configuration expectations, and operational considerations.
+- `System/project_architecture.md` — full-stack overview covering repository layout, runtime data flow between services, external dependencies (OpenAI, LiveKit, Deepgram, Silero), configuration expectations, operational considerations, and notes on the frontend’s autoplay fallback using `useAudioPlayback`.
 - `SOP/update_livekit_agent_persona_and_tools.md` — step-by-step guide for editing the LiveKit agent persona, tool registry, and related documentation.
 - `SOP/maintain_frontend_shadcn.md` — workflow for evolving the Tailwind + shadcn-based frontend, including verification and documentation steps.
+- `../README.md` — repo landing page with technology highlights, screenshots, and Docker Compose-first run instructions.
 
 ## Maintenance Checklist
 - After modifying services, update the relevant System or SOP files and ensure the new/changed documents are linked here.

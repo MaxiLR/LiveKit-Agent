@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import time
 from datetime import datetime
 from typing import Iterable, TYPE_CHECKING
 
@@ -21,11 +22,27 @@ logger = logging.getLogger(__name__)
 def build_agent_tools(*, rag_client: "RAGClient", rag_top_k: int) -> Iterable[FunctionTool]:
     """Construct the function tools available to the voice agent."""
 
+    status_notification_lock = asyncio.Lock()
+    status_notification_state = {"last_ts": 0.0, "last_query": None}
+
     async def _maybe_send_status_update(
-        context: RunContext, query: str, delay_seconds: float = 0.75
+        context: RunContext, query: str, delay_seconds: float = 0.75, throttle_seconds: float = 8.0
     ) -> None:
         try:
             await asyncio.sleep(delay_seconds)
+            normalized_query = query.strip().lower()
+            now = time.monotonic()
+            async with status_notification_lock:
+                last_ts = status_notification_state["last_ts"]
+                last_query = status_notification_state["last_query"]
+                if (
+                    last_query == normalized_query
+                    and now - last_ts < throttle_seconds
+                ):
+                    return
+                status_notification_state["last_ts"] = now
+                status_notification_state["last_query"] = normalized_query
+
             await context.session.generate_reply(
                 instructions=(
                     "Let the user know you're checking the knowledge base for "

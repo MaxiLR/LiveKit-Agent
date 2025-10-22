@@ -199,7 +199,7 @@ const App = () => {
 
   if (!serverUrl || !backendUrl) {
     return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-black px-6 py-12 text-white">
+      <main className="flex h-screen w-full items-center justify-center overflow-hidden bg-black px-6 text-white">
         <Card className="w-full max-w-xl border border-white/30 bg-black text-white shadow-lg">
           <CardHeader>
             <CardTitle>Configuration Required</CardTitle>
@@ -221,7 +221,7 @@ const App = () => {
 
   if (!token) {
     return (
-      <main className="flex min-h-screen w-full items-center justify-center bg-black px-6 py-12 text-white">
+      <main className="flex h-screen w-full items-center justify-center overflow-hidden bg-black px-6 text-white">
         <Card className="w-full max-w-xl border border-white/30 bg-black text-white shadow-lg">
           <CardHeader>
             <CardTitle>LiveKit Knowledge Agent</CardTitle>
@@ -244,14 +244,14 @@ const App = () => {
   }
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-black px-4 py-8 text-white">
-      <div className="flex w-full max-w-6xl flex-col">
+    <main className="flex h-screen w-full justify-center overflow-hidden bg-black px-4 text-white">
+      <div className="flex h-full w-full max-w-6xl flex-col py-6">
         <LiveKitRoom
           token={token}
           serverUrl={serverUrl}
           connectOptions={{ autoSubscribe: true }}
           onDisconnected={handleLeave}
-          className="flex h-[82vh] flex-col rounded-[32px] border border-white/20 bg-black/80 px-8 py-6 shadow-2xl"
+          className="flex flex-1 min-h-0 flex-col rounded-[32px] border border-white/20 bg-black/80 px-8 py-6 shadow-2xl"
           data-lk-theme="default"
         >
           <RoomAudioRenderer />
@@ -379,8 +379,8 @@ const ActiveSession = ({
         </span>
       </header>
 
-      <div className="mt-6 flex flex-1 flex-col overflow-hidden">
-        <div className="grid h-full flex-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="mt-6 flex flex-1 min-h-0 flex-col overflow-hidden">
+        <div className="grid h-full min-h-0 flex-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-white/20 bg-black/60 p-6">
             <TranscriptPanel localIdentity={localIdentity} />
           </div>

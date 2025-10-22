@@ -32,11 +32,11 @@
   }
 
   body {
-    @apply min-h-screen bg-black text-white antialiased;
+    @apply min-h-screen bg-black text-white antialiased overflow-hidden;
   }
 
   #root {
-    @apply flex min-h-screen;
+    @apply flex min-h-screen w-full overflow-hidden;
   }
 }
 

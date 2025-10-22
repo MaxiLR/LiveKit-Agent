@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { useConnectionState, useRoomContext } from "@livekit/components-react";
+import {
+  useAudioPlayback,
+  useConnectionState,
+  useRoomContext
+} from "@livekit/components-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,9 +15,10 @@ type SessionControlsProps = {
 const SessionControls = ({ onLeave }: SessionControlsProps) => {
   const room = useRoomContext();
   const [ending, setEnding] = useState(false);
-  const [audioStarted, setAudioStarted] = useState(false);
   const [microphoneEnabled, setMicrophoneEnabled] = useState<boolean>(true);
   const connectionState = useConnectionState();
+  const { canPlayAudio, startAudio } = useAudioPlayback(room ?? undefined);
+  const [isStartingAudio, setIsStartingAudio] = useState(false);
 
   useEffect(() => {
     const local = room?.localParticipant;
@@ -43,17 +48,6 @@ const SessionControls = ({ onLeave }: SessionControlsProps) => {
     }
   };
 
-  const handleStartAudio = async () => {
-    if (audioStarted) return;
-    if (!room) return;
-    try {
-      await room.startAudio();
-      setAudioStarted(true);
-    } catch (error) {
-      console.error("Failed to start audio playback", error);
-    }
-  };
-
   const toggleMicrophone = async () => {
     if (!room) return;
     try {
@@ -68,15 +62,27 @@ const SessionControls = ({ onLeave }: SessionControlsProps) => {
   return (
     <footer className="mt-6 border-t border-white/15 pt-4">
       <div className="flex flex-wrap items-center justify-end gap-3">
-        <Button
-          type="button"
-          variant={audioStarted ? "outline" : "default"}
-          onClick={handleStartAudio}
-          disabled={audioStarted}
-          className={cn("min-w-[140px]")}
-        >
-          {audioStarted ? "Audio Ready" : "Enable Audio"}
-        </Button>
+        {!canPlayAudio && (
+          <Button
+            type="button"
+            variant="default"
+            onClick={async () => {
+              if (isStartingAudio) return;
+              setIsStartingAudio(true);
+              try {
+                await startAudio();
+              } catch (error) {
+                console.error("Failed to start audio playback", error);
+              } finally {
+                setIsStartingAudio(false);
+              }
+            }}
+            disabled={isStartingAudio}
+            className={cn("min-w-[140px]")}
+          >
+            {isStartingAudio ? "Enabling…" : "Enable Audio"}
+          </Button>
+        )}
         <Button
           type="button"
           variant="ghost"

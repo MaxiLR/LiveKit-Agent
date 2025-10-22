@@ -24,7 +24,7 @@
   - Presents the call UI inside a fixed-height monochrome shell (`h-[82vh]`) so the conference area has a predictable footprint; transcript and knowledge panels clamp their height and become scrollable when content overflows.
   - Formats transcript bubbles with agent turns left-aligned and participant turns right-aligned using a pure black-and-white palette (Tailwind tokens and shadcn components were stripped of colour accents).
   - Fetches knowledge documents from the RAG service (`GET {VITE_RAG_SERVICE_URL}/documents`), displays the active vector store id, and uploads PDFs via `POST {VITE_RAG_SERVICE_URL}/documents` with inline status/error handling.
-  - Keeps session controls (`SessionControls`) for audio start, mute/unmute, and leaving the call with simplified monochrome buttons.
+  - Keeps session controls (`SessionControls`) for mute/unmute and leaving the call, plus a fallback audio unlock button that appears only when the browser blocks autoplay and is wired through `useAudioPlayback`.
 - **Token API service** (`agent/token_api.py`):
   - FastAPI app with CORS configured from `BACKEND_API_ALLOWED_ORIGINS`.
   - Validates presence of `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` and issues JWTs via `livekit.api.AccessToken`.
@@ -35,6 +35,7 @@
   - Loads persona instructions from `personality.md` and registers tools provided by `tools/registry.py`.
   - Uses `RAGClient` to hit the external RAG service; falls back with user-friendly errors if the service is unavailable.
   - Sends proactive status updates during long-running retrieval (implemented in `tools/registry.py`) and greets users when sessions start.
+  - Status updates are throttled so the agent only notifies the caller about the same query once every ~8 seconds, preventing repeated "still searching" messages when retrieval retries.
   - Maintains the agent session across short disconnects so users can rejoin the same room without restarting; rejoin greetings and idle shutdown are governed by `LIVEKIT_AGENT_REJOIN_GRACE_SECONDS` (default 120 s) and `LIVEKIT_AGENT_REJOIN_GREETING_COOLDOWN` (default 5 s).
   - Rejoin welcome messages are issued through a guarded background task to avoid queuing multiple greetings and to comply with the `AgentSession.generate_reply` API returning a `SpeechHandle` instead of a coroutine.
 - **RAG HTTP service** (`rag_service/main.py`):

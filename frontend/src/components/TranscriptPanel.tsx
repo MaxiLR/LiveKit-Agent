@@ -34,7 +34,7 @@ const TranscriptPanel = ({ localIdentity }: TranscriptPanelProps) => {
   }, [recentSegments]);
 
   return (
-    <div className="flex h-full flex-col gap-4 text-white">
+    <div className="flex h-full min-h-0 flex-col gap-4 text-white">
       <div>
         <h2 className="text-lg font-semibold text-white">Transcript</h2>
         <p className="text-xs text-white/60">Agent responses align left, your turns align right.</p>
