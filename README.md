@@ -98,5 +98,6 @@ Prefer running services individually? Start them in this order:
 1. Review `.agent/README.md` for the documentation index.
 2. After modifying behaviour, update the relevant doc in `.agent/System`, `.agent/SOP`, or `.agent/Tasks`.
 3. Keep `docker-compose.yml` and environment templates aligned with the docs to prevent drift.
+4. Tailor the agent’s role, personality, and core instructions in `services/livekit_agent/src/personality.md` to match your use case.
 
 Happy hacking! 🎧🧠
